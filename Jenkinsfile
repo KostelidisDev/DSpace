@@ -83,7 +83,7 @@ pipeline {
 }
 
 def produce(imageName, contextPath, dockerfileName, extraBuildContext = []) {
-    build(imageName, contextPath, dockerfileName)
+    build(imageName, contextPath, dockerfileName, extraBuildContext)
     push(imageName, contextPath, dockerfileName)
 }
 
