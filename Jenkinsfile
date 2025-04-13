@@ -13,10 +13,55 @@ pipeline {
                 stage('API') {
                     steps {
                         script {
-                            build('repository-api', './', './Dockerfile')
+                            produce(
+                                'repository-api', 
+                                './', 
+                                './Dockerfile'
+                            )
                         }
+                    }
+                }
+                stage('CLI') {
+                    steps {
                         script {
-                            push('repository-api', './', './Dockerfile')
+                            produce(
+                                'repository-cli', 
+                                './', 
+                                './Dockerfile.cli'
+                            )
+                        }
+                    }
+                }
+                stage('PostgreSQL with pgcrypto and curl') {
+                    steps {
+                        script {
+                            produce(
+                                'repository-postgres-pgcrypto-curl', 
+                                './dspace/src/main/docker/dspace-postgres-pgcrypto-curl/', 
+                                './dspace/src/main/docker/dspace-postgres-pgcrypto-curl/Dockerfile'
+                            )
+                        }
+                    }
+                }
+                stage('PostgreSQL with pgcrypto') {
+                    steps {
+                        script {
+                            produce(
+                                'repository-postgres-pgcrypto', 
+                                './dspace/src/main/docker/dspace-postgres-pgcrypto/', 
+                                './dspace/src/main/docker/dspace-postgres-pgcrypto/Dockerfile'
+                            )
+                        }
+                    }
+                }
+                stage('Solr') {
+                    steps {
+                        script {
+                            produce(
+                                'repository-postgres-pgcrypto', 
+                                './', 
+                                './dspace/src/main/docker/dspace-solr/Dockerfile'
+                            )
                         }
                     }
                 }
@@ -34,6 +79,10 @@ pipeline {
     }
 }
 
+def produce(imageName, contextPath, dockerfileName) {
+    build(imageName, contextPath, dockerfileName)
+    push(imageName, contextPath, dockerfileName)
+}
 
 def build(imageName, contextPath, dockerfileName) {
     def imageTag = "${DOCKER_REGISTRY}/${DOCKER_PROJECT}/${imageName}:latest"
