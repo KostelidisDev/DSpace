@@ -13,7 +13,7 @@ pipeline {
                 stage('API') {
                     steps {
                         script {
-                            produce(
+                            dockerBuilder(
                                 'repository-api', 
                                 './', 
                                 './Dockerfile'
@@ -24,7 +24,7 @@ pipeline {
                 stage('CLI') {
                     steps {
                         script {
-                            produce(
+                            dockerBuilder(
                                 'repository-cli', 
                                 './', 
                                 './Dockerfile.cli'
@@ -35,7 +35,7 @@ pipeline {
                 stage('PostgreSQL with pgcrypto and curl') {
                     steps {
                         script {
-                            produce(
+                            dockerBuilder(
                                 'repository-postgres-pgcrypto-curl', 
                                 './dspace/src/main/docker/dspace-postgres-pgcrypto-curl/', 
                                 './dspace/src/main/docker/dspace-postgres-pgcrypto-curl/Dockerfile'
@@ -46,7 +46,7 @@ pipeline {
                 stage('PostgreSQL with pgcrypto') {
                     steps {
                         script {
-                            produce(
+                            dockerBuilder(
                                 'repository-postgres-pgcrypto', 
                                 './dspace/src/main/docker/dspace-postgres-pgcrypto/', 
                                 './dspace/src/main/docker/dspace-postgres-pgcrypto/Dockerfile'
@@ -57,7 +57,7 @@ pipeline {
                 stage('Solr') {
                     steps {
                         script {
-                            produce(
+                            dockerBuilder(
                                 'repository-postgres-solr', 
                                 './', 
                                 './dspace/src/main/docker/dspace-solr/Dockerfile',
@@ -82,28 +82,19 @@ pipeline {
     }
 }
 
-def produce(imageName, contextPath, dockerfileName, extraBuildContext = []) {
-    build(imageName, contextPath, dockerfileName, extraBuildContext)
-    push(imageName, contextPath, dockerfileName)
-}
+def dockerBuilder(imageName, contextPath, dockerfileName, extraBuildContext = []) {
+    def timestamp = sh(script: "date +%Y.%m.%d%H", returnStdout: true).trim()
 
-def build(imageName, contextPath, dockerfileName, extraBuildContext = []) {
-    def imageTag = "${DOCKER_REGISTRY}/${DOCKER_PROJECT}/${imageName}:latest"
+    def imageTagLatest = "${DOCKER_REGISTRY}/${DOCKER_PROJECT}/${imageName}:latest"
+    def imageTagTimestamped = "${DOCKER_REGISTRY}/${DOCKER_PROJECT}/${imageName}:${timestamp}"
+
     def buildContextArgs = ""
-    
+
     if (extraBuildContext) {
         extraBuildContext.each { context ->
             buildContextArgs += " --build-context ${context}"
         }
     }
-    
-    sh """
-        docker build ${buildContextArgs} -f ${dockerfileName} -t ${imageTag} ${contextPath}
-    """
-}
-
-def push(imageName, contextPath, dockerfileName) {
-    def imageTag = "${DOCKER_REGISTRY}/${DOCKER_PROJECT}/${imageName}:latest"
 
     withCredentials([
         usernamePassword(
@@ -116,10 +107,22 @@ def push(imageName, contextPath, dockerfileName) {
             echo \$DOCKER_PASS | docker login ${DOCKER_REGISTRY} -u \$DOCKER_USER --password-stdin
         """
         sh """
-            docker push ${imageTag}
+            docker buildx create --use --platform=$ARCHS --name multi-platform-builder-${imageName}
         """
         sh """
-            docker rmi ${imageTag}
+            docker buildx inspect --bootstrap
+        """
+        sh """
+            docker \
+                buildx \
+                build \
+                --push \
+                --platform=$ARCHS \
+                ${buildContextArgs} \
+                    -f ${dockerfileName} \
+                    -t ${imageTagLatest} \
+                    -t ${imageTagTimestamped} \
+                ${contextPath}
         """
     }
 }
