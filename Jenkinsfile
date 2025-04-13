@@ -58,7 +58,7 @@ pipeline {
                     steps {
                         script {
                             produce(
-                                'repository-postgres-pgcrypto', 
+                                'repository-postgres-solr', 
                                 './', 
                                 './dspace/src/main/docker/dspace-solr/Dockerfile',
                                 [
