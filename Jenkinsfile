@@ -5,7 +5,7 @@ pipeline {
 
     environment {
         DOCKER_PROJECT = 'repository'
-        ARCHS = "linux/amd64,linux/arm64"
+        ARCHS = "linux/arm64"
     }
 
     stages {
