@@ -60,7 +60,10 @@ pipeline {
                             produce(
                                 'repository-postgres-pgcrypto', 
                                 './', 
-                                './dspace/src/main/docker/dspace-solr/Dockerfile'
+                                './dspace/src/main/docker/dspace-solr/Dockerfile',
+                                [
+                                    "solrconfigs=./dspace/solr"
+                                ]
                             )
                         }
                     }
@@ -79,16 +82,24 @@ pipeline {
     }
 }
 
-def produce(imageName, contextPath, dockerfileName) {
+def produce(imageName, contextPath, dockerfileName, extraBuildContext = []) {
     build(imageName, contextPath, dockerfileName)
     push(imageName, contextPath, dockerfileName)
 }
 
-def build(imageName, contextPath, dockerfileName) {
+def build(imageName, contextPath, dockerfileName, extraBuildContext = []) {
     def imageTag = "${DOCKER_REGISTRY}/${DOCKER_PROJECT}/${imageName}:latest"
+    def buildContextArgs = ""
+    
+    if (extraBuildContext) {
+        extraBuildContext.each { context ->
+            buildContextArgs += " --build-context ${context}"
+        }
+    }
+    
     sh """
-            docker build -f ${dockerfileName} -t ${imageTag} ${contextPath}
-        """
+        docker build ${buildContextArgs} -f ${dockerfileName} -t ${imageTag} ${contextPath}
+    """
 }
 
 def push(imageName, contextPath, dockerfileName) {
