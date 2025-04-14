@@ -1,73 +1,139 @@
+def nativeArch = 'amd64'
+
+def builds = [
+    [
+        arch: 'arm64', 
+        name: 'repository-api',  
+        path: './',  
+        dockerfile: './Dockerfile', 
+        extraContext: []
+    ],
+    [
+        arch: 'amd64', 
+        name: 'repository-api',  
+        path: './',  
+        dockerfile: './Dockerfile', 
+        extraContext: []
+    ],
+
+    [
+        arch: 'arm64', 
+        name: 'repository-cli',  
+        path: './',  
+        dockerfile: './Dockerfile.cli', 
+        extraContext: []
+    ],
+    [
+        arch: 'amd64', 
+        name: 'repository-cli',  
+        path: './',  
+        dockerfile: './Dockerfile.cli', 
+        extraContext: []
+    ],
+
+    [
+        arch: 'arm64', 
+        name: 'repository-postgres-pgcrypto-curl',  
+        path: './dspace/src/main/docker/dspace-postgres-pgcrypto-curl/',  
+        dockerfile: './dspace/src/main/docker/dspace-postgres-pgcrypto-curl/Dockerfile', 
+        extraContext: []
+    ],
+    [
+        arch: 'amd64', 
+        name: 'repository-postgres-pgcrypto-curl',  
+        path: './dspace/src/main/docker/dspace-postgres-pgcrypto-curl/',  
+        dockerfile: './dspace/src/main/docker/dspace-postgres-pgcrypto-curl/Dockerfile', 
+        extraContext: []
+    ],
+
+    [
+        arch: 'arm64', 
+        name: 'repository-postgres-pgcrypto',  
+        path: './dspace/src/main/docker/dspace-postgres-pgcrypto/',  
+        dockerfile: './dspace/src/main/docker/dspace-postgres-pgcrypto/Dockerfile', 
+        extraContext: []
+    ],
+    [
+        arch: 'amd64', 
+        name: 'repository-postgres-pgcrypto',  
+        path: './dspace/src/main/docker/dspace-postgres-pgcrypto/',  
+        dockerfile: './dspace/src/main/docker/dspace-postgres-pgcrypto/Dockerfile', 
+        extraContext: []
+    ],
+    
+    [
+        arch: 'arm64', 
+        name: 'repository-postgres-solr',  
+        path: './',  
+        dockerfile: './dspace/src/main/docker/dspace-solr/Dockerfile', 
+        extraContext: [
+            "solrconfigs=./dspace/solr"
+        ]
+    ],
+    [
+        arch: 'amd64', 
+        name: 'repository-postgres-solr',  
+        path: './',  
+        dockerfile: './dspace/src/main/docker/dspace-solr/Dockerfile', 
+        extraContext: [
+            "solrconfigs=./dspace/solr"
+        ]
+    ],
+
+]
+
+def merges = builds.findAll { it.arch == nativeArch }
+
 pipeline {
     agent {
-        label 'docker-agent'
+        label nativeArch
     }
 
     environment {
-        DOCKER_PROJECT = 'repository'
-        ARCHS = "linux/arm64"
+        DOCKER_PROJECT = 'demo'
     }
 
     stages {
-        stage('Pipeline') {
-            parallel {
-                stage('API') {
-                    steps {
-                        script {
-                            dockerBuilder(
-                                'repository-api', 
-                                './', 
-                                './Dockerfile'
-                            )
-                        }
+        stage('Build Multi-Arch Images') {
+            steps {
+                script {
+                    def parallelStages = builds.collectEntries { build ->
+                        def stageName = "${build.name}-${build.arch}"
+                        [(stageName): {
+                            node(build.arch) {
+                                stage(stageName) {
+                                    dockerBuildImage(
+                                        build.arch,
+                                        build.name,
+                                        build.path,
+                                        build.dockerfile,
+                                        build.extraContext
+                                    )
+                                }
+                            }
+                        }]
                     }
+                    parallel parallelStages
                 }
-                stage('CLI') {
-                    steps {
-                        script {
-                            dockerBuilder(
-                                'repository-cli', 
-                                './', 
-                                './Dockerfile.cli'
-                            )
-                        }
+            }
+        }
+
+        stage('Merge Multi-Arch Images') {
+            steps {
+                script {
+                    def parallelStages = merges.collectEntries { build ->
+                        def stageName = "${build.name}"
+                        [(stageName): {
+                            node(build.arch) {
+                                stage(stageName) {
+                                    dockerMergeImages(
+                                        build.name
+                                    )
+                                }
+                            }
+                        }]
                     }
-                }
-                stage('PostgreSQL with pgcrypto and curl') {
-                    steps {
-                        script {
-                            dockerBuilder(
-                                'repository-postgres-pgcrypto-curl', 
-                                './dspace/src/main/docker/dspace-postgres-pgcrypto-curl/', 
-                                './dspace/src/main/docker/dspace-postgres-pgcrypto-curl/Dockerfile'
-                            )
-                        }
-                    }
-                }
-                stage('PostgreSQL with pgcrypto') {
-                    steps {
-                        script {
-                            dockerBuilder(
-                                'repository-postgres-pgcrypto', 
-                                './dspace/src/main/docker/dspace-postgres-pgcrypto/', 
-                                './dspace/src/main/docker/dspace-postgres-pgcrypto/Dockerfile'
-                            )
-                        }
-                    }
-                }
-                stage('Solr') {
-                    steps {
-                        script {
-                            dockerBuilder(
-                                'repository-postgres-solr', 
-                                './', 
-                                './dspace/src/main/docker/dspace-solr/Dockerfile',
-                                [
-                                    "solrconfigs=./dspace/solr"
-                                ]
-                            )
-                        }
-                    }
+                    parallel parallelStages
                 }
             }
         }
@@ -75,19 +141,17 @@ pipeline {
 
     post {
         failure {
-            echo "❌ Build or push failed."
+            echo "❌"
         }
         success {
-            echo "✅ All images built and pushed successfully."
+            echo "✅"
         }
     }
 }
 
-def dockerBuilder(imageName, contextPath, dockerfileName, extraBuildContext = []) {
-    def timestamp = sh(script: "date +%Y.%m.%d%H", returnStdout: true).trim()
-
-    def imageTagLatest = "${DOCKER_REGISTRY}/${DOCKER_PROJECT}/${imageName}:latest"
-    def imageTagTimestamped = "${DOCKER_REGISTRY}/${DOCKER_PROJECT}/${imageName}:${timestamp}"
+def dockerBuildImage(imageArch, imageName, contextPath, dockerfileName, extraBuildContext = []) {
+    def imageBase = "${env.DOCKER_REGISTRY}/${env.DOCKER_PROJECT}/${imageName}"
+    def imageTagLatest = "${imageBase}:latest-${imageArch}"
 
     def buildContextArgs = ""
 
@@ -99,31 +163,53 @@ def dockerBuilder(imageName, contextPath, dockerfileName, extraBuildContext = []
 
     withCredentials([
         usernamePassword(
-            credentialsId: DOCKER_CREDENTIALS_ID, 
-            usernameVariable: 'DOCKER_USER', 
+            credentialsId: env.DOCKER_CREDENTIALS_ID,
+            usernameVariable: 'DOCKER_USER',
             passwordVariable: 'DOCKER_PASS'
         )
     ]) {
         sh """
-            echo \$DOCKER_PASS | docker login ${DOCKER_REGISTRY} -u \$DOCKER_USER --password-stdin
-        """
-        sh """
-            docker buildx create --use --platform=$ARCHS --name multi-platform-builder-${imageName}
-        """
-        sh """
-            docker buildx inspect --bootstrap
-        """
-        sh """
-            docker \
-                buildx \
-                build \
-                --push \
-                --platform=$ARCHS \
-                ${buildContextArgs} \
-                    -f ${dockerfileName} \
-                    -t ${imageTagLatest} \
-                    -t ${imageTagTimestamped} \
+            echo \$DOCKER_PASS | docker login ${env.DOCKER_REGISTRY} -u \$DOCKER_USER --password-stdin
+
+            docker build ${buildContextArgs} \
+                -f ${dockerfileName} \
+                -t ${imageTagLatest} \
                 ${contextPath}
+            docker push ${imageTagLatest}
+        """
+    }
+}
+
+def dockerMergeImages(imageName) {
+    def timestamp = sh(script: "date +%Y.%m.%d%H", returnStdout: true).trim()
+
+    def base = "${env.DOCKER_REGISTRY}/${env.DOCKER_PROJECT}/${imageName}"
+    def timestampedManifest = "${base}:${timestamp}"
+    def latestManifest = "${base}:latest"
+
+    def latestArchTags = [
+        "${base}:latest-amd64", "${base}:latest-arm64"
+    ]
+
+    withCredentials([
+        usernamePassword(
+            credentialsId: env.DOCKER_CREDENTIALS_ID,
+            usernameVariable: 'DOCKER_USER',
+            passwordVariable: 'DOCKER_PASS'
+        )
+    ]) {
+        sh """
+            echo \$DOCKER_PASS | docker login ${env.DOCKER_REGISTRY} -u \$DOCKER_USER --password-stdin
+
+            docker manifest create ${latestManifest} ${latestArchTags.join(' ')}
+            docker manifest annotate ${latestManifest} ${latestArchTags[0]} --arch amd64
+            docker manifest annotate ${latestManifest} ${latestArchTags[1]} --arch arm64
+            docker manifest push ${latestManifest}
+
+            docker manifest create ${timestampedManifest} ${latestArchTags.join(' ')}
+            docker manifest annotate ${timestampedManifest} ${latestArchTags[0]} --arch amd64
+            docker manifest annotate ${timestampedManifest} ${latestArchTags[1]} --arch arm64
+            docker manifest push ${timestampedManifest}
         """
     }
 }
