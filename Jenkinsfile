@@ -15,7 +15,6 @@ def builds = [
         dockerfile: './Dockerfile', 
         extraContext: []
     ],
-
     [
         arch: 'arm64', 
         name: 'repository-cli',  
@@ -30,7 +29,6 @@ def builds = [
         dockerfile: './Dockerfile.cli', 
         extraContext: []
     ],
-
     [
         arch: 'arm64', 
         name: 'repository-postgres-pgcrypto-curl',  
@@ -45,7 +43,6 @@ def builds = [
         dockerfile: './dspace/src/main/docker/dspace-postgres-pgcrypto-curl/Dockerfile', 
         extraContext: []
     ],
-
     [
         arch: 'arm64', 
         name: 'repository-postgres-pgcrypto',  
@@ -60,7 +57,6 @@ def builds = [
         dockerfile: './dspace/src/main/docker/dspace-postgres-pgcrypto/Dockerfile', 
         extraContext: []
     ],
-    
     [
         arch: 'arm64', 
         name: 'repository-postgres-solr',  
@@ -85,12 +81,10 @@ def builds = [
 def merges = builds.findAll { it.arch == nativeArch }
 
 pipeline {
-    agent {
-        label nativeArch
-    }
+    agent any
 
     environment {
-        DOCKER_PROJECT = 'demo'
+        DOCKER_PROJECT = 'repository'
     }
 
     stages {
