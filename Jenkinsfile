@@ -1,5 +1,9 @@
 def builds = [
     [name: 'repository-api',  context: './',  dockerfile: './Dockerfile', extraContext: []],
+    [name: 'repository-cli',  context: './',  dockerfile: './Dockerfile.cli', extraContext: []],
+    [name: 'repository-postgres-pgcrypto',  context: './dspace/src/main/docker/dspace-postgres-pgcrypto/',  dockerfile: './dspace/src/main/docker/dspace-postgres-pgcrypto/Dockerfile', extraContext: []],
+    [name: 'repository-postgres-pgcrypto-curl',  context: './dspace/src/main/docker/dspace-postgres-pgcrypto-curl/',  dockerfile: './dspace/src/main/docker/dspace-postgres-pgcrypto-curl/Dockerfile', extraContext: []],
+    [name: 'repository-solr',  context: './',  dockerfile: './dspace/src/main/docker/dspace-solr/Dockerfile', extraContext: ["solrconfigs=./dspace/solr"]],
 ]
 
 pipeline {
