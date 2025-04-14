@@ -4,78 +4,17 @@ def builds = [
     [
         arch: 'arm64', 
         name: 'repository-api',  
-        path: './',  
+        context: './',  
         dockerfile: './Dockerfile', 
         extraContext: []
     ],
     [
         arch: 'amd64', 
         name: 'repository-api',  
-        path: './',  
+        context: './',  
         dockerfile: './Dockerfile', 
         extraContext: []
-    ],
-    [
-        arch: 'arm64', 
-        name: 'repository-cli',  
-        path: './',  
-        dockerfile: './Dockerfile.cli', 
-        extraContext: []
-    ],
-    [
-        arch: 'amd64', 
-        name: 'repository-cli',  
-        path: './',  
-        dockerfile: './Dockerfile.cli', 
-        extraContext: []
-    ],
-    [
-        arch: 'arm64', 
-        name: 'repository-postgres-pgcrypto-curl',  
-        path: './dspace/src/main/docker/dspace-postgres-pgcrypto-curl/',  
-        dockerfile: './dspace/src/main/docker/dspace-postgres-pgcrypto-curl/Dockerfile', 
-        extraContext: []
-    ],
-    [
-        arch: 'amd64', 
-        name: 'repository-postgres-pgcrypto-curl',  
-        path: './dspace/src/main/docker/dspace-postgres-pgcrypto-curl/',  
-        dockerfile: './dspace/src/main/docker/dspace-postgres-pgcrypto-curl/Dockerfile', 
-        extraContext: []
-    ],
-    [
-        arch: 'arm64', 
-        name: 'repository-postgres-pgcrypto',  
-        path: './dspace/src/main/docker/dspace-postgres-pgcrypto/',  
-        dockerfile: './dspace/src/main/docker/dspace-postgres-pgcrypto/Dockerfile', 
-        extraContext: []
-    ],
-    [
-        arch: 'amd64', 
-        name: 'repository-postgres-pgcrypto',  
-        path: './dspace/src/main/docker/dspace-postgres-pgcrypto/',  
-        dockerfile: './dspace/src/main/docker/dspace-postgres-pgcrypto/Dockerfile', 
-        extraContext: []
-    ],
-    [
-        arch: 'arm64', 
-        name: 'repository-postgres-solr',  
-        path: './',  
-        dockerfile: './dspace/src/main/docker/dspace-solr/Dockerfile', 
-        extraContext: [
-            "solrconfigs=./dspace/solr"
-        ]
-    ],
-    [
-        arch: 'amd64', 
-        name: 'repository-postgres-solr',  
-        path: './',  
-        dockerfile: './dspace/src/main/docker/dspace-solr/Dockerfile', 
-        extraContext: [
-            "solrconfigs=./dspace/solr"
-        ]
-    ],
-
+    ]
 ]
 
 def merges = builds.findAll { it.arch == nativeArch }
@@ -99,7 +38,7 @@ pipeline {
                                     dockerBuildImage(
                                         build.arch,
                                         build.name,
-                                        build.path,
+                                        build.context,
                                         build.dockerfile,
                                         build.extraContext
                                     )
